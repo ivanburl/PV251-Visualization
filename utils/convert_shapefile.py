@@ -4,7 +4,6 @@ Uses the already downloaded GADM shapefile
 """
 
 import os
-import json
 
 # Try geopandas first
 try:
@@ -19,7 +18,7 @@ try:
         gdf = gdf[['NAME_1', 'VARNAME_1', 'TYPE_1', 'geometry']]
         
         # Save as GeoJSON
-        os.makedirs('data', exist_ok=True)
+        os.makedirs('../data', exist_ok=True)
         gdf.to_file('data/czechia_regions.geojson', driver='GeoJSON')
         
         print(f"✓ GeoJSON saved to: data/czechia_regions.geojson")

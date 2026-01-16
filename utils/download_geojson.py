@@ -22,11 +22,11 @@ def download_gadm_geojson():
     
     zip_path = "gadm41_CZE_shp.zip"
     extract_dir = "gadm_temp"
-    geojson_path = "data/czechia_regions.geojson"
+    geojson_path = "../data/czechia_regions.geojson"
     
     try:
         # Create data directory if it doesn't exist
-        os.makedirs("data", exist_ok=True)
+        os.makedirs("../data", exist_ok=True)
         os.makedirs(extract_dir, exist_ok=True)
         
         # Download GADM shapefile
