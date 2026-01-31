@@ -7,6 +7,14 @@ Place your accident data CSV files in this directory.
 Download data from the Czech Police website:
 https://policie.gov.cz/clanek/statistika-nehodovosti.aspx
 
+To fastly download and unpack the data you can use `donwload.sh` script. 
+After completion of the `download.sh` script you can reproduce the accidents.csv file   
+via the following command in root directory:
+
+```bash
+python ./utils/assembly_data.py
+```
+
 ## Expected Format
 
 The application can handle various column name formats. Common Czech column names that are automatically recognized:
