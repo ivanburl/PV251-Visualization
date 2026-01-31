@@ -178,5 +178,5 @@ def update_dashboard(region, date_range, weather, road_type, accident_type,
   sankey_fig = create_sankey_diagram(filtered_df)
 
   return (
-    road_type_fig.to_dict(), collision_fig.to_dict(), car_brand_fig.to_dict(), sankey_fig,regional_details,geojson_region, geojson_cluster
+    road_type_fig.to_dict(format="vega"), collision_fig.to_dict(format="vega"), car_brand_fig.to_dict(format="vega"), sankey_fig,regional_details,geojson_region, geojson_cluster
    )

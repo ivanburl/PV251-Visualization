@@ -220,7 +220,6 @@ def clean_data(df):
     
     # Validate age: must be numeric and reasonable (18+)
     if 'age' in df.columns:
-        df['age'] = pd.to_numeric(df['age'], errors='coerce')
         df = df[(df['age'] >= 18) | df['age'].isna()]  # Keep valid ages or NaN
     
     return df
@@ -356,4 +355,3 @@ def create_sample_data():
     
     df = pd.DataFrame(data_list)
     return df
-
