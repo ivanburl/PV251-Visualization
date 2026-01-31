@@ -1,7 +1,10 @@
 import plotly.graph_objects as go
 import plotly.express as px
 import dash_leaflet.express as dlx
+
 import altair as alt
+alt.data_transformers.enable("vegafusion")
+
 import pandas as pd
 from pandas import DataFrame
 
