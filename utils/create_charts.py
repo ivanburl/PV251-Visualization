@@ -124,15 +124,15 @@ def get_geojson_cluster(df):
 # Define color scheme for accident severity
 def create_road_type_chart(df:DataFrame):
   """Create bar chart showing accident frequency by road type"""
-  if 'road_type' not in df.columns or df['road_type'].isna().all() or len(df) == 0:
-    return create_empty_chart("Road Type Distribution")
-
-  # Get top 10 road types (change 10 to show more/fewer)
-  road_type_counts = df['road_type'].value_counts().head(10).reset_index()
-  road_type_counts.columns = ['road_type', 'count']
-
-  if len(road_type_counts) == 0:
-    return create_empty_chart("Road Type Distribution")
+  if 'road_type' not in df.columns:
+    df = pd.DataFrame(columns=['road_type', 'count'])
+  
+  if df.empty or df['road_type'].isna().all():
+    road_type_counts = pd.DataFrame(columns=['road_type', 'count'])
+  else:
+    # Get top 10 road types (change 10 to show more/fewer)
+    road_type_counts = df['road_type'].value_counts().head(10).reset_index()
+    road_type_counts.columns = ['road_type', 'count']
 
   # 1. On définit une BASE commune (pour ne pas répéter x et y)
   base = alt.Chart(road_type_counts).encode(
@@ -189,24 +189,27 @@ def create_road_type_chart(df:DataFrame):
 
 def create_collision_chart(df):
   """Create donut chart showing collision type distribution"""
-  if 'collision_type' not in df.columns or df['collision_type'].isna().all() or len(df) == 0:
-    return create_empty_chart("Collision Type Distribution")
+  if 'collision_type' not in df.columns:
+    df = pd.DataFrame(columns=['collision_type'])
 
-  collision_counts = df['collision_type'].value_counts().reset_index()
-  collision_counts.columns = ['collision_type', 'count']
+  if df.empty or df['collision_type'].isna().all():
+    collision_counts = pd.DataFrame(columns=['collision_type', 'count', 'label_text', 'percent'])
+  else:
+    collision_counts = df['collision_type'].value_counts().reset_index()
+    collision_counts.columns = ['collision_type', 'count']
+    collision_counts = collision_counts.sort_values('collision_type')
+    collision_counts['percent'] = collision_counts['count'] / collision_counts['count'].sum()
 
-  if len(collision_counts) == 0:
-    return create_empty_chart("Collision Type Distribution")
-
-  collision_counts = collision_counts.sort_values('collision_type')
-  collision_counts['percent'] = collision_counts['count'] / collision_counts['count'].sum()
-
-  # Labels externes
-  collision_counts['label_text'] = collision_counts.apply(
-    lambda x: [str(x['collision_type']), f"{x['percent']:.0%}"], axis=1
-  )
+    # Labels externes
+    collision_counts['label_text'] = collision_counts.apply(
+      lambda x: [str(x['collision_type']), f"{x['percent']:.0%}"], axis=1
+    )
+  
   # Colorblind-safe categorical colors
-  chart_colors = px.colors.qualitative.Set2[:len(collision_counts)]
+  if len(collision_counts) > 0:
+      chart_colors = px.colors.qualitative.Set2[:len(collision_counts)]
+  else:
+      chart_colors = []
 
   select = alt.selection_point(
     fields=['collision_type'],
@@ -228,7 +231,7 @@ def create_collision_chart(df):
     ),
     color=alt.Color(
       shorthand="collision_type",
-      scale=alt.Scale(range=chart_colors),
+      scale=alt.Scale(range=chart_colors) if chart_colors else alt.Scale(),
       legend=alt.Legend(title="Collision Type", orient='right',titleFontSize=13, labelFontSize=12)
     ),
     opacity=alt.condition(select, alt.value(1), alt.value(0.3)),
@@ -265,14 +268,26 @@ def create_collision_chart(df):
   text_label = center_info.mark_text(radius=0, dy=20, fontSize=12, color='gray').encode(
     text=alt.Text("central_label:N")
   )
-
-  fig = (pie + outer_text + text_count + text_label).properties(
-    title=alt.TitleParams(text='Collision Types Pie Chart', fontSize=14, color='#2c3e50'),
-    width="container",
-    height=220
-  ).configure_view(
-    stroke=None
-  )
+  
+  # For empty chart, just return the pie (which will be empty rings) + title
+  # The center info transforms might fail on empty data, so we handle that
+  if df.empty or df['collision_type'].isna().all():
+      # Create a simple view for empty state using base chart to maintain structure
+      fig =  base.mark_arc(innerRadius=45).encode(
+          theta=alt.value(0)
+      ).properties(
+        title=alt.TitleParams(text='Collision Types Pie Chart', fontSize=14, color='#2c3e50'),
+        width="container",
+        height=220
+      )
+  else:
+      fig = (pie + outer_text + text_count + text_label).properties(
+        title=alt.TitleParams(text='Collision Types Pie Chart', fontSize=14, color='#2c3e50'),
+        width="container",
+        height=220
+      ).configure_view(
+        stroke=None
+      )
 
   return fig
 
@@ -280,21 +295,22 @@ def create_collision_chart(df):
 def create_car_brand_chart(df):
   """Create stacked bar chart showing accidents by car brand and severity using Altair"""
 
-  if 'car_brand' not in df.columns or df['car_brand'].isna().all() or len(df) == 0:
-    return create_empty_chart("Car Brand Safety")
+  if 'car_brand' not in df.columns:
+     df = pd.DataFrame(columns=['car_brand', 'severity'])
 
-  top_brands = df['car_brand'].value_counts().head(10).index.tolist()
+  chart_data = pd.DataFrame(columns=['car_brand', 'severity']) # Default empty
 
-  if not top_brands:
-    return create_empty_chart("Car Brand Safety")
-
-  chart_data = df[df['car_brand'].isin(top_brands)].copy()
+  if not df.empty and not df['car_brand'].isna().all():
+      top_brands = df['car_brand'].value_counts().head(10).index.tolist()
+      if top_brands:
+         chart_data = df[df['car_brand'].isin(top_brands)].copy()
 
   severity_order = ['Fatal', 'Serious', 'Slight']
 
   available_severities = [s for s in severity_order if s in chart_data['severity'].unique()]
-
-  domain = available_severities
+  
+  # Even if empty, we want the legend to potentially show if we hardcode domain
+  domain = available_severities if available_severities else severity_order
   range_colors = [SEVERITY_COLORS.get(s, '#95a5a6') for s in domain]
 
   select = alt.selection_point(
@@ -350,13 +366,43 @@ def create_car_brand_chart(df):
 def create_sankey_diagram(df):
   """Create Sankey diagram showing flow from collision type to severity"""
   if 'collision_type' not in df.columns or 'severity' not in df.columns:
-    return create_empty_chart("Collision to Severity Flow")
+    # Return empty Plotly figure instead of Altair chart
+    fig = go.Figure()
+    fig.update_layout(
+      title=dict(text='Sankey: Collision Type → Severity', font=dict(size=14, color='#2c3e50')),
+      height=220,
+      margin=dict(l=20, r=20, t=50, b=20),
+      paper_bgcolor='white',
+      annotations=[{
+        'text': 'No data available',
+        'xref': 'paper',
+        'yref': 'paper',
+        'showarrow': False,
+        'font': {'size': 16, 'color': '#95a5a6'}
+      }]
+    )
+    return fig
 
   # Remove records with missing collision type or severity
   sankey_df = df[df['collision_type'].notna() & df['severity'].notna()].copy()
 
   if len(sankey_df) == 0:
-    return create_empty_chart("Collision to Severity Flow")
+    # Return empty Plotly figure instead of Altair chart
+    fig = go.Figure()
+    fig.update_layout(
+      title=dict(text='Sankey: Collision Type → Severity', font=dict(size=14, color='#2c3e50')),
+      height=220,
+      margin=dict(l=20, r=20, t=50, b=20),
+      paper_bgcolor='white',
+      annotations=[{
+        'text': 'No data available',
+        'xref': 'paper',
+        'yref': 'paper',
+        'showarrow': False,
+        'font': {'size': 16, 'color': '#95a5a6'}
+      }]
+    )
+    return fig
 
   # Get unique values for nodes
   collision_types = sankey_df['collision_type'].unique()
@@ -427,18 +473,3 @@ def create_sankey_diagram(df):
   return fig
 
 
-def create_empty_chart(title)-> alt.Chart:
-  """Create an empty chart placeholder"""
-
-  source = pd.DataFrame(
-    {
-      'a': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'],
-      'b': [28, 55, 43, 91, 81, 53, 19, 87, 52]
-    }
-  )
-
-  fig = alt.Chart(source,title=title).mark_bar().encode(
-      x='a',
-      y='b'
-  )
-  return fig
